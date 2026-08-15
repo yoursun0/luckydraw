@@ -8,6 +8,7 @@ import GalaxyCanvas from "./GalaxyCanvas";
 import DrawButton from "./DrawButton";
 import WinnerCards from "./WinnerCards";
 import ProgressBar from "./ProgressBar";
+import AudioController from "./AudioController";
 
 function FullscreenButton() {
   const toggle = () => {
@@ -30,7 +31,7 @@ function FullscreenButton() {
 
 export default function DisplayPage() {
   const router = useRouter();
-  const { state, reset } = useSession();
+  const { state, returnToSetup } = useSession();
 
   useEffect(() => {
     if (state.phase === "IDLE") {
@@ -41,18 +42,19 @@ export default function DisplayPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && state.phase === "FINISHED") {
-        reset();
+        returnToSetup();
         router.push("/");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.phase, router, reset]);
+  }, [state.phase, router, returnToSetup]);
 
   if (state.phase === "IDLE") return null;
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black">
+      <AudioController />
       <GalaxyCanvas />
       <RoundIndicator />
       <WinnerCards />
@@ -63,7 +65,7 @@ export default function DisplayPage() {
         <button
           type="button"
           onClick={() => {
-            reset();
+            returnToSetup();
             router.push("/");
           }}
           className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 bg-white/10 hover:bg-white/20 text-white border border-white/30 px-8 py-3 rounded-full text-lg font-semibold backdrop-blur transition-all"

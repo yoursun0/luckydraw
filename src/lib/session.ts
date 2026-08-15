@@ -25,14 +25,26 @@ export function startReveal(state: SessionState, winners: Participant[]): Sessio
   };
 }
 
-export function finishReveal(state: SessionState): SessionState {
+/**
+ * Mark the reveal animation as complete: move REVEALING → REVEALED and apply
+ * the filter to `eligible` so the next round's pool is correct.
+ */
+export function markRevealComplete(state: SessionState): SessionState {
   if (state.phase !== "REVEALING") return state;
   const lastResult = state.results[state.results.length - 1];
   const winnerIds = new Set(lastResult.winners.map((w) => w.id));
   const eligible = state.config.filterWinners
     ? state.eligible.filter((p) => !winnerIds.has(p.id))
     : state.eligible;
-  return { ...state, phase: "ROUND_COMPLETE", eligible };
+  return { ...state, phase: "REVEALED", eligible };
+}
+
+/**
+ * User has confirmed the winners and is ready to advance. REVEALED → ROUND_COMPLETE.
+ */
+export function advanceFromRevealed(state: SessionState): SessionState {
+  if (state.phase !== "REVEALED") return state;
+  return { ...state, phase: "ROUND_COMPLETE" };
 }
 
 export function advanceRound(state: SessionState): SessionState {

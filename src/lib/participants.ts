@@ -17,6 +17,16 @@ export function generateParticipants(count: number): Participant[] {
   }));
 }
 
+/**
+ * Returns the textarea-friendly representation of a numbered list of N
+ * participants (e.g. "1\n2\n3\n…\nN"). Pairs with `detectAndParse`, which
+ * recognises this exact format and rebuilds the same Participant[].
+ */
+export function numberedListText(count: number): string {
+  if (count <= 0) return "";
+  return Array.from({ length: count }, (_, i) => String(i + 1)).join("\n");
+}
+
 export function parseCSV(input: string): Participant[] {
   const rows = parseCSVRows(input);
   if (rows.length === 0) return [];

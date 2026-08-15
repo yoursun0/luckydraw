@@ -11,6 +11,10 @@ export interface SessionConfig {
   rounds: number;
   winnersPerRound: number;
   filterWinners: boolean;
+  /** When true, the display shows a "previous rounds" recap under the
+   *  current round's winners (REVEALED / ROUND_COMPLETE) and a full
+   *  per-round summary on the final screen (FINISHED). */
+  showPreviousRounds: boolean;
 }
 
 export interface RoundResult {
@@ -19,7 +23,13 @@ export interface RoundResult {
   drawnAt: number;
 }
 
-export type Phase = "IDLE" | "PRE_DRAW" | "REVEALING" | "ROUND_COMPLETE" | "FINISHED";
+export type Phase =
+  | "IDLE"
+  | "PRE_DRAW"
+  | "REVEALING"
+  | "REVEALED"
+  | "ROUND_COMPLETE"
+  | "FINISHED";
 
 export interface SessionState {
   config: SessionConfig;

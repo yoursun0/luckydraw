@@ -1,31 +1,49 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useMemo, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useMemo,
+  useCallback,
+  useEffect,
+} from "react";
 import type { Participant, SessionConfig, SessionState, Phase } from "./types";
 import {
   createInitialSession,
   startReveal,
-  finishReveal,
+  markRevealComplete,
+  advanceFromRevealed,
   advanceRound,
 } from "./session";
 import { selectWinners } from "./draw";
+import { REVEAL_DURATION_MS } from "./reveal";
 
 export interface SessionContextValue {
-  state: SessionState | { phase: "IDLE"; config: null; currentRound: 0; results: []; eligible: [] };
+  state: SessionState | IdleState;
   startSession: (config: SessionConfig) => void;
   drawCurrentRound: (winners: Participant[]) => void;
   drawAuto: () => void;
   finishAndAdvance: () => void;
-  reset: () => void;
+  returnToSetup: () => void;
 }
 
-type AnyState = SessionContextValue["state"];
+interface IdleState {
+  phase: "IDLE";
+  config: SessionConfig | null;
+  currentRound: 0;
+  results: [];
+  eligible: [];
+}
+
+type AnyState = SessionState | IdleState;
 
 type Action =
   | { type: "START"; config: SessionConfig }
   | { type: "DRAW"; winners: Participant[] }
   | { type: "FINISH_AND_ADVANCE" }
-  | { type: "RESET" };
+  | { type: "RETURN_TO_SETUP" }
+  | { type: "REVEAL_DONE" };
 
 const initial: AnyState = {
   phase: "IDLE" as Phase,
@@ -44,12 +62,24 @@ function reducer(state: AnyState, action: Action): AnyState {
       return startReveal(state as SessionState, action.winners);
     }
     case "FINISH_AND_ADVANCE": {
-      if (state.phase !== "REVEALING") return state;
-      const finished = finishReveal(state as SessionState);
-      return advanceRound(finished);
+      // Triggered by user pressing Next in REVEALED. Advances to
+      // ROUND_COMPLETE then to PRE_DRAW (or FINISHED).
+      if (state.phase !== "REVEALED") return state;
+      const completed = advanceFromRevealed(state as SessionState);
+      return advanceRound(completed);
     }
-    case "RESET":
-      return initial;
+    case "REVEAL_DONE": {
+      // Auto-transition after the canvas reveal animation has finished:
+      // REVEALING → REVEALED (applies filter so the next round's pool is
+      // correct).
+      if (state.phase !== "REVEALING") return state;
+      return markRevealComplete(state as SessionState);
+    }
+    case "RETURN_TO_SETUP":
+      // Reset session state but keep the last config so the setup form can
+      // be pre-filled when the user clicks "New Draw".
+      if (state.phase === "IDLE") return state;
+      return { ...initial, config: (state as SessionState).config };
     default:
       return state;
   }
@@ -57,8 +87,14 @@ function reducer(state: AnyState, action: Action): AnyState {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initial);
+export function SessionProvider({
+  children,
+  preloadedState,
+}: {
+  children: React.ReactNode;
+  preloadedState?: AnyState;
+}) {
+  const [state, dispatch] = useReducer(reducer, preloadedState ?? initial);
 
   const startSession = useCallback(
     (config: SessionConfig) => dispatch({ type: "START", config }),
@@ -72,13 +108,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     () => dispatch({ type: "FINISH_AND_ADVANCE" }),
     []
   );
-  const reset = useCallback(() => dispatch({ type: "RESET" }), []);
+  const returnToSetup = useCallback(
+    () => dispatch({ type: "RETURN_TO_SETUP" }),
+    []
+  );
 
   const drawAuto = useCallback(() => {
     if (state.phase !== "PRE_DRAW" || !state.config) return;
     const winners = selectWinners(state.eligible, state.config.winnersPerRound);
     dispatch({ type: "DRAW", winners });
   }, [state]);
+
+  // Auto-transition REVEALING → REVEALED once the canvas reveal animation
+  // has finished, so the winner cards appear and the user can advance.
+  useEffect(() => {
+    if (state.phase !== "REVEALING") return;
+    const timer = setTimeout(() => {
+      dispatch({ type: "REVEAL_DONE" });
+    }, REVEAL_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [state.phase]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -87,9 +136,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       drawCurrentRound,
       drawAuto,
       finishAndAdvance,
-      reset,
+      returnToSetup,
     }),
-    [state, startSession, drawCurrentRound, drawAuto, finishAndAdvance, reset]
+    [state, startSession, drawCurrentRound, drawAuto, finishAndAdvance, returnToSetup]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

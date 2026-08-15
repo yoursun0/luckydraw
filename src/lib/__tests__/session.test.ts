@@ -1,6 +1,12 @@
 // src/lib/__tests__/session.test.ts
 import { describe, it, expect } from "vitest";
-import { createInitialSession, startReveal, finishReveal, advanceRound } from "../session";
+import {
+  createInitialSession,
+  startReveal,
+  markRevealComplete,
+  advanceFromRevealed,
+  advanceRound,
+} from "../session";
 import type { SessionConfig, Participant } from "../types";
 
 const config: SessionConfig = {
@@ -12,6 +18,7 @@ const config: SessionConfig = {
   rounds: 3,
   winnersPerRound: 2,
   filterWinners: true,
+  showPreviousRounds: true,
 };
 
 describe("createInitialSession", () => {
@@ -46,16 +53,16 @@ describe("startReveal", () => {
   });
 });
 
-describe("finishReveal", () => {
-  it("moves to ROUND_COMPLETE and applies filter if enabled", () => {
+describe("markRevealComplete", () => {
+  it("moves to REVEALED and applies filter if enabled", () => {
     const state0 = createInitialSession(config);
     const winners: Participant[] = [
       { id: "1", name: "P1" },
       { id: "2", name: "P2" },
     ];
     const state1 = startReveal(state0, winners);
-    const state2 = finishReveal(state1);
-    expect(state2.phase).toBe("ROUND_COMPLETE");
+    const state2 = markRevealComplete(state1);
+    expect(state2.phase).toBe("REVEALED");
     expect(state2.eligible).toHaveLength(8);
     expect(state2.eligible.find((p) => p.id === "1")).toBeUndefined();
   });
@@ -68,13 +75,29 @@ describe("finishReveal", () => {
       { id: "2", name: "P2" },
     ];
     const state1 = startReveal(state0, winners);
-    const state2 = finishReveal(state1);
+    const state2 = markRevealComplete(state1);
     expect(state2.eligible).toHaveLength(10);
   });
 
   it("does nothing if not in REVEALING", () => {
     const state0 = createInitialSession(config);
-    const state1 = finishReveal(state0);
+    const state1 = markRevealComplete(state0);
+    expect(state1.phase).toBe("PRE_DRAW");
+  });
+});
+
+describe("advanceFromRevealed", () => {
+  it("moves REVEALED to ROUND_COMPLETE", () => {
+    const state0 = createInitialSession(config);
+    const state1 = startReveal(state0, state0.eligible.slice(0, 2));
+    const state2 = markRevealComplete(state1);
+    const state3 = advanceFromRevealed(state2);
+    expect(state3.phase).toBe("ROUND_COMPLETE");
+  });
+
+  it("does nothing if not in REVEALED", () => {
+    const state0 = createInitialSession(config);
+    const state1 = advanceFromRevealed(state0);
     expect(state1.phase).toBe("PRE_DRAW");
   });
 });
@@ -85,7 +108,8 @@ describe("advanceRound", () => {
     for (let i = 1; i <= 2; i++) {
       const winners = state.eligible.slice(0, 2);
       state = startReveal(state, winners);
-      state = finishReveal(state);
+      state = markRevealComplete(state);
+      state = advanceFromRevealed(state);
       state = advanceRound(state);
       expect(state.currentRound).toBe(i + 1);
       expect(state.phase).toBe(i + 1 <= config.rounds ? "PRE_DRAW" : "FINISHED");
@@ -97,7 +121,8 @@ describe("advanceRound", () => {
     let state = createInitialSession(cfg);
     const winners = state.eligible.slice(0, 1);
     state = startReveal(state, winners);
-    state = finishReveal(state);
+    state = markRevealComplete(state);
+    state = advanceFromRevealed(state);
     state = advanceRound(state);
     expect(state.phase).toBe("FINISHED");
   });
@@ -107,18 +132,21 @@ describe("advanceRound", () => {
     let state = createInitialSession(cfg);
     // Round 1
     state = startReveal(state, state.eligible.slice(0, 2));
-    state = finishReveal(state);
+    state = markRevealComplete(state);
+    state = advanceFromRevealed(state);
     state = advanceRound(state);
     expect(state.phase).toBe("PRE_DRAW");
     // Round 2
     state = startReveal(state, state.eligible.slice(0, 2));
-    state = finishReveal(state);
+    state = markRevealComplete(state);
+    state = advanceFromRevealed(state);
     state = advanceRound(state);
     // 6 picked, 4 left, but need 2 → can still draw
     expect(state.phase).toBe("PRE_DRAW");
     // Round 3
     state = startReveal(state, state.eligible.slice(0, 2));
-    state = finishReveal(state);
+    state = markRevealComplete(state);
+    state = advanceFromRevealed(state);
     state = advanceRound(state);
     // 8 picked, 2 left, but rounds=3 → FINISHED
     expect(state.phase).toBe("FINISHED");

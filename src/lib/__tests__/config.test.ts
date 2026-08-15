@@ -12,6 +12,7 @@ const base: SessionConfig = {
   rounds: 2,
   winnersPerRound: 1,
   filterWinners: true,
+  showPreviousRounds: true,
 };
 
 describe("validateConfig", () => {
@@ -59,6 +60,7 @@ describe("validateConfig", () => {
       rounds: 3,
       winnersPerRound: 2,
       filterWinners: true,
+      showPreviousRounds: true,
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -73,6 +75,7 @@ describe("validateConfig", () => {
       rounds: 3,
       winnersPerRound: 2,
       filterWinners: false,
+      showPreviousRounds: true,
     });
     expect(result.ok).toBe(true);
   });

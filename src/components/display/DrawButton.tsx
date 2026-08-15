@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useSession } from "@/lib/store";
+import { getAudioContext, playDrumroll } from "@/lib/audio";
+import { REVEAL_DURATION_MS } from "@/lib/reveal";
 
 export default function DrawButton() {
   const { state, drawAuto, finishAndAdvance } = useSession();
+
+  const handleDraw = useCallback(() => {
+    // Start the drumroll in response to a user gesture (the click) so the
+    // browser's autoplay policy is satisfied.
+    const ctx = getAudioContext();
+    playDrumroll(ctx, REVEAL_DURATION_MS);
+    drawAuto();
+  }, [drawAuto]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -17,19 +27,19 @@ export default function DrawButton() {
         return;
       if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
-        if (state.phase === "PRE_DRAW") drawAuto();
-        else if (state.phase === "REVEALING") finishAndAdvance();
+        if (state.phase === "PRE_DRAW") handleDraw();
+        else if (state.phase === "REVEALED") finishAndAdvance();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.phase, drawAuto, finishAndAdvance]);
+  }, [state.phase, handleDraw, finishAndAdvance]);
 
   if (state.phase === "PRE_DRAW") {
     return (
       <button
         type="button"
-        onClick={drawAuto}
+        onClick={handleDraw}
         className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 bg-white/10 hover:bg-white/20 text-white border border-white/30 px-8 py-3 rounded-full text-lg font-semibold backdrop-blur transition-all"
       >
         Draw
@@ -37,7 +47,7 @@ export default function DrawButton() {
     );
   }
 
-  if (state.phase === "REVEALING") {
+  if (state.phase === "REVEALED") {
     return (
       <button
         type="button"

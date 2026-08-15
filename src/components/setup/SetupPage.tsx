@@ -3,19 +3,36 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/store";
-import { detectAndParse } from "@/lib/participants";
+import { detectAndParse, numberedListText } from "@/lib/participants";
 import { validateConfig } from "@/lib/config";
 import type { SessionConfig } from "@/lib/types";
 
 export default function SetupPage() {
   const router = useRouter();
-  const { startSession } = useSession();
+  const { startSession, state } = useSession();
+  const lastConfig = state.config;
 
-  const [eventTitle, setEventTitle] = useState("");
-  const [input, setInput] = useState("");
-  const [rounds, setRounds] = useState(1);
-  const [winnersPerRound, setWinnersPerRound] = useState(1);
-  const [filterWinners, setFilterWinners] = useState(true);
+  // Pre-fill the form from the last session's config (kept after "New Draw"
+  // via the store's returnToSetup action). Falls back to defaults when the
+  // user has no previous session.
+  const [eventTitle, setEventTitle] = useState(lastConfig?.eventTitle ?? "");
+  const [input, setInput] = useState(
+    lastConfig ? lastConfig.participants.map((p) => p.name).join("\n") : ""
+  );
+  const [rounds, setRounds] = useState(lastConfig?.rounds ?? 1);
+  const [winnersPerRound, setWinnersPerRound] = useState(
+    lastConfig?.winnersPerRound ?? 1
+  );
+  const [filterWinners, setFilterWinners] = useState(
+    lastConfig?.filterWinners ?? true
+  );
+  const [showPreviousRounds, setShowPreviousRounds] = useState(
+    lastConfig?.showPreviousRounds ?? true
+  );
+  // Separate state for the bulk-generate input. Independent of `input` so
+  // typing here never clobbers a hand-written participant list until the user
+  // explicitly clicks Generate.
+  const [generateCount, setGenerateCount] = useState<number>(0);
 
   const participants = useMemo(() => detectAndParse(input), [input]);
 
@@ -26,11 +43,17 @@ export default function SetupPage() {
       rounds,
       winnersPerRound,
       filterWinners,
+      showPreviousRounds,
     }),
-    [eventTitle, participants, rounds, winnersPerRound, filterWinners]
+    [eventTitle, participants, rounds, winnersPerRound, filterWinners, showPreviousRounds]
   );
 
   const validation = useMemo(() => validateConfig(config), [config]);
+
+  const handleGenerate = () => {
+    if (generateCount < 1) return;
+    setInput(numberedListText(generateCount));
+  };
 
   const handleStart = () => {
     if (!validation.ok) return;
@@ -72,6 +95,36 @@ export default function SetupPage() {
           >
             Participants
           </label>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label
+                htmlFor="generate-count"
+                className="block text-xs text-zinc-500 mb-1"
+              >
+                Number of participants
+              </label>
+              <input
+                id="generate-count"
+                type="number"
+                min={1}
+                max={1000}
+                value={generateCount || ""}
+                onChange={(e) =>
+                  setGenerateCount(Math.max(0, parseInt(e.target.value || "0", 10)))
+                }
+                placeholder="e.g. 200"
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generateCount < 1}
+              className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 text-zinc-200 border border-zinc-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              Generate
+            </button>
+          </div>
           <p className="text-xs text-zinc-500">
             Paste one name per line, or a single number to auto-generate. CSV
             with a header is detected automatically.
@@ -129,11 +182,8 @@ export default function SetupPage() {
               className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
             />
           </div>
-          <div className="flex flex-col">
-            <span className="block text-sm font-medium text-zinc-300 mb-1">
-              Filter
-            </span>
-            <label className="inline-flex items-center gap-2 mt-2">
+          <div className="flex flex-col gap-2">
+            <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={filterWinners}
@@ -141,6 +191,17 @@ export default function SetupPage() {
                 className="rounded bg-zinc-900 border-zinc-700"
               />
               <span className="text-sm text-zinc-300">No repeat winners</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showPreviousRounds}
+                onChange={(e) => setShowPreviousRounds(e.target.checked)}
+                className="rounded bg-zinc-900 border-zinc-700"
+              />
+              <span className="text-sm text-zinc-300">
+                Show previous rounds
+              </span>
             </label>
           </div>
         </section>

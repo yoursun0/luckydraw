@@ -1,6 +1,12 @@
 // src/lib/__tests__/participants.test.ts
 import { describe, it, expect } from "vitest";
-import { parseTextareaInput, generateParticipants, parseCSV, detectAndParse } from "../participants";
+import {
+  parseTextareaInput,
+  generateParticipants,
+  parseCSV,
+  detectAndParse,
+  numberedListText,
+} from "../participants";
 
 describe("parseTextareaInput", () => {
   it("returns empty array for blank input", () => {
@@ -90,5 +96,31 @@ describe("detectAndParse", () => {
       { id: "1", name: "Alice" },
       { id: "2", name: "Bob" },
     ]);
+  });
+});
+
+describe("numberedListText", () => {
+  it("returns '1'..'N' joined by newlines for positive N", () => {
+    expect(numberedListText(5)).toBe("1\n2\n3\n4\n5");
+  });
+
+  it("handles N=1", () => {
+    expect(numberedListText(1)).toBe("1");
+  });
+
+  it("handles two-digit numbers correctly", () => {
+    expect(numberedListText(12)).toBe(
+      "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12"
+    );
+  });
+
+  it("returns empty string for N <= 0", () => {
+    expect(numberedListText(0)).toBe("");
+    expect(numberedListText(-1)).toBe("");
+  });
+
+  it("result is parseable by detectAndParse into the same participants", () => {
+    const text = numberedListText(10);
+    expect(detectAndParse(text)).toEqual(generateParticipants(10));
   });
 });
