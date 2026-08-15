@@ -9,6 +9,7 @@ import DrawButton from "./DrawButton";
 import WinnerCards from "./WinnerCards";
 import ProgressBar from "./ProgressBar";
 import AudioController from "./AudioController";
+import ExportWinnersButton from "./ExportWinnersButton";
 
 function FullscreenButton() {
   const toggle = () => {
@@ -62,16 +63,19 @@ export default function DisplayPage() {
       <ProgressBar />
       <FullscreenButton />
       {state.phase === "FINISHED" && (
-        <button
-          type="button"
-          onClick={() => {
-            returnToSetup();
-            router.push("/");
-          }}
-          className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 bg-white/10 hover:bg-white/20 text-white border border-white/30 px-8 py-3 rounded-full text-lg font-semibold backdrop-blur transition-all"
-        >
-          New Draw
-        </button>
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4">
+          <ExportWinnersButton />
+          <button
+            type="button"
+            onClick={() => {
+              returnToSetup();
+              router.push("/");
+            }}
+            className="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-8 py-3 rounded-full text-lg font-semibold backdrop-blur transition-all"
+          >
+            New Draw
+          </button>
+        </div>
       )}
       <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-zinc-500 font-mono z-30">
         {state.config.eventTitle || "Lucky Draw"}

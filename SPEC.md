@@ -150,6 +150,6 @@ App
 - Google Sheets live sync
 - Multi-language support
 - Sound effects
-- Winner export / history persistence
+- History persistence (winner export is implemented — format: `docs/winner-export-schema.md`)
 - Authentication / saved draws
 - Separate display URL (single-device projection is sufficient)
