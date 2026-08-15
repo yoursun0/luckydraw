@@ -126,8 +126,7 @@ export default function SetupPage() {
             </button>
           </div>
           <p className="text-xs text-zinc-500">
-            Paste one name per line, or a single number to auto-generate. CSV
-            with a header is detected automatically.
+            Paste one name per line, or a single number to auto-generate.
           </p>
           <textarea
             id="participants"
